@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+  <div class="auth-container">
+    <h1>Вход</h1>
+    <form method="POST" class="auth-form">
+      <label>Логин:</label>
+      <input type="text" name="username" required>
+
+      <label>Пароль:</label>
+      <input type="password" name="password" required>
+
+      <button type="submit" class="btn">Войти</button>
+    </form>
+
+    <p class="auth-link">
+      Нет аккаунта?
+      <a href="{{ url_for('register') }}">Регистрация</a>
+    </p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash-messages">
+          {% for msg in messages %}
+            <li>{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+  </div>
+</body>
+</html>

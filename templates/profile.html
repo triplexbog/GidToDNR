@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>В разработке</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      min-height: 100vh; /* корректно для мобильных */
+      padding: 20px; /* чтобы не прижималось к краям */
+      box-sizing: border-box;
+    }
+
+    h1 {
+      color: #ff9500;
+      font-size: 2rem;
+      margin-bottom: 20px;
+      word-wrap: break-word;
+    }
+
+    a {
+      background: #ff9500;
+      color: #fff;
+      text-decoration: none;
+      padding: 12px 25px;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+
+    a:hover {
+      background: #e67e00;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.6rem;
+      }
+      a {
+        width: 100%;
+        max-width: 300px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>В разработке</h1>
+  <a href="/logout">🚪 Выйти</a>
+</body>
+</html>

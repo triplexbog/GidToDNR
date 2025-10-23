@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Админ-панель</title>
+<style>
+body {
+  font-family: sans-serif;
+  background: #f6f6f6;
+  margin: 0;
+  padding: 20px;
+}
+.container {
+  max-width: 700px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px #ccc;
+}
+h1 {
+  color: #ff9500;
+  text-align: center;
+}
+.nav-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.nav-buttons a {
+  background: #ff9500;
+  color: white;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  transition: background 0.3s;
+}
+.nav-buttons a:hover {
+  background: #e67e00;
+}
+input, select, button {
+  padding: 8px 12px;
+  margin: 5px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+button {
+  background: #ff9500;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:hover {
+  background: #e67e00;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 0.95rem;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+  word-wrap: break-word;
+}
+.flash {
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+}
+
+/* ======== АДАПТИВНОСТЬ ======== */
+@media screen and (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+  .container {
+    padding: 15px;
+    width: 95%;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+  input, select, button {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 6px 0;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+  }
+  table {
+    font-size: 0.85rem;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  th, td {
+    padding: 6px;
+  }
+  button {
+    font-size: 1rem;
+    padding: 10px;
+  }
+  .edit-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .edit-form select, .edit-form button {
+    width: 100%;
+    margin: 4px 0;
+  }
+  td form {
+    display: flex;
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Админ-панель</h1>
+
+  <div class="nav-buttons">
+    <a href="{{ url_for('index') }}">🏠 На карту</a>
+    <a href="/logout">🚪 Выйти</a>
+  </div>
+
+  <p><b>Всего пользователей:</b> {{ total_users }} | <b>Категорий:</b> {{ total_categories }}</p>
+
+  <h3>Добавить пользователя</h3>
+  <form id="user-form">
+    <input name="username" placeholder="Логин" required>
+    <input name="password" placeholder="Пароль" required>
+    <select name="role">
+      <option value="user">user</option>
+      <option value="owner">owner</option>
+      <option value="moderator">moderator</option>
+      <option value="admin">admin</option>
+    </select>
+    <button type="submit">Добавить</button>
+  </form>
+
+  <h3>Пользователи</h3>
+  <table>
+    <tr><th>ID</th><th>Имя</th><th>Роль</th><th>Действия</th></tr>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.username }}</td>
+      <td>
+        <form class="edit-form" data-id="{{ u.id }}">
+          <select name="role">
+            {% for r in ['user','owner','moderator','admin'] %}
+              <option value="{{r}}" {% if u.role==r %}selected{% endif %}>{{r}}</option>
+            {% endfor %}
+          </select>
+          <button>💾</button>
+        </form>
+      </td>
+      <td><button class="delete" data-id="{{u.id}}">❌</button></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h3>Добавить категорию</h3>
+  <form id="cat-form">
+    <input name="name" placeholder="Название категории" required>
+    <button>Добавить</button>
+  </form>
+</div>
+
+<script>
+document.getElementById('user-form').onsubmit = async e=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/admin/add_user',{method:'POST',body:fd});
+  const d = await r.json();
+  alert(d.msg||'Добавлено');
+  location.reload();
+};
+
+document.querySelectorAll('.edit-form').forEach(f=>{
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const fd = new FormData(f);
+    const id = f.dataset.id;
+    const r = await fetch(`/admin/edit_user/${id}`,{method:'POST',body:fd});
+    const d = await r.json();
+    alert(d.msg||'Роль обновлена');
+    location.reload();
+  }
+});
+
+document.querySelectorAll('.delete').forEach(btn=>{
+  btn.onclick = async ()=>{
+    if(!confirm('Удалить пользователя?')) return;
+    const id = btn.dataset.id;
+    const r = await fetch(`/admin/delete_user/${id}`,{method:'POST'});
+    const d = await r.json();
+    alert(d.msg||'Удалено');
+    location.reload();
+  }
+});
+
+document.getElementById('cat-form').onsubmit = async e=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/admin/add_category',{method:'POST',body:fd});
+  const d = await r.json();
+  alert(d.msg||'Категория добавлена');
+  location.reload();
+};
+</script>
+</body>
+</html>

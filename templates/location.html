@@ -1,0 +1,16 @@
+<!-- templates/location.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>{{ location.name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<h1>{{ location.name }}</h1>
+<img src="{{ location.photo or '/static/no_photo.png' }}" alt="{{ location.name }}">
+<p>{{ location.description }}</p>
+<p>Адрес: {{ location.address }}</p>
+<a href="{{ url_for('index') }}">Назад</a>
+</body>
+</html>

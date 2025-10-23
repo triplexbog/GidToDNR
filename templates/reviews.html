@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Отзывы — {{ location.name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body {
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* === Шапка === */
+    .reviews-header {
+      background: #ff9500;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      font-size: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .page-container {
+      padding: 15px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 10px 0 5px;
+    }
+
+    .rating-summary {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .avg-rating {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-right: 6px;
+    }
+
+    .star { font-size: 18px; }
+    .gold { color: gold; }
+    .gray { color: #ccc; }
+
+    /* === Карточка отзыва === */
+    .review-card {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    }
+
+    .review-card strong {
+      font-weight: bold;
+    }
+
+    .review-card p {
+      margin: 6px 0 0;
+    }
+
+    .btn {
+      background: #ff9500;
+      color: white;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn.gray {
+      background: #ccc;
+      color: #333;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    textarea, select {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 1rem;
+      margin-top: 6px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    form {
+      margin-bottom: 15px;
+    }
+
+    @media (max-width: 600px) {
+      .page-container {
+        padding: 10px;
+      }
+      .btn {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="reviews-header">
+    <button class="back-btn" onclick="window.history.back()">←</button>
+    <span>Отзывы о {{ location.name }}</span>
+    <span></span>
+  </header>
+
+  <div class="page-container">
+    <div class="rating-summary">
+      <span class="avg-rating">{{ avg_rating }}</span>
+      {% for i in range(1,6) %}
+        {% if i <= avg_rating|round(0, 'floor') %}
+          <span class="star gold">★</span>
+        {% else %}
+          <span class="star gray">☆</span>
+        {% endif %}
+      {% endfor %}
+      <small>({{ reviews|length }} отзывов)</small>
+    </div>
+
+    <div style="margin:10px 0;">
+      <form method="get">
+        <label>Сортировать:
+          <select name="sort" onchange="this.form.submit()">
+            <option value="desc" {% if sort=='desc' %}selected{% endif %}>От лучших</option>
+            <option value="asc" {% if sort=='asc' %}selected{% endif %}>От худших</option>
+          </select>
+        </label>
+      </form>
+    </div>
+
+    {% for r in reviews %}
+      <div class="review-card">
+        <div>
+          {% for i in range(1,6) %}
+            {% if i <= r.rating %}
+              <span class="star gold">★</span>
+            {% else %}
+              <span class="star gray">☆</span>
+            {% endif %}
+          {% endfor %}
+          <strong>{{ r.user.username }}</strong> — {{ r.created_at.strftime('%d.%m.%Y') }}
+        </div>
+        <p>{{ r.comment }}</p>
+        {% if current_user.is_authenticated and r.user_id == current_user.id %}
+          <form action="{{ url_for('delete_review', review_id=r.id) }}" method="post">
+            <button type="submit" class="btn gray">Удалить</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    {% if current_user.is_authenticated %}
+      <div class="add-review">
+        <h3>Оставить отзыв</h3>
+        <form action="{{ url_for('add_review', loc_id=location.id) }}" method="post">
+          <label>Оценка:
+            <select name="rating">
+              {% for i in range(1,6) %}
+                <option value="{{ i }}">{{ i }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <textarea name="comment" placeholder="Ваш отзыв..." required></textarea>
+          <button type="submit" class="btn">Отправить</button>
+        </form>
+      </div>
+    {% else %}
+      <p><a href="{{ url_for('login') }}">Войдите</a>, чтобы оставить отзыв.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

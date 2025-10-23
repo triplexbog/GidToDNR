@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Редактировать локацию</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body { font-family: 'Segoe UI', Roboto, sans-serif; background:#f8f9fa; margin:0; }
+    header.app-header { display:flex; justify-content:space-between; align-items:center; background:linear-gradient(90deg,#ff9500,#ffb84d); color:#fff; padding:10px 15px; }
+    header h1 { margin:0; font-size:1.2rem; }
+    header nav a { color:#fff; text-decoration:none; margin-left:10px; }
+    main { padding:15px; max-width:600px; margin:0 auto; }
+    form { background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+    label { display:block; margin-bottom:10px; font-weight:500; }
+    input, textarea, select { width:100%; padding:8px; margin-top:4px; border:1px solid #ccc; border-radius:6px; font-size:0.95rem; }
+    textarea { resize: vertical; }
+    button { background:#ff9500; color:#fff; border:none; border-radius:8px; padding:10px 16px; cursor:pointer; margin-top:10px; font-size:1rem; }
+    button:hover { background:#e58400; }
+    .btn-gray { background:#ccc; color:#333; margin-left:10px; }
+    .btn-gray:hover { background:#bbb; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>✏️ Редактировать локацию</h1>
+    <nav>
+      <a href="{{ url_for('my_locations') }}">Назад</a>
+    </nav>
+  </header>
+
+  <main>
+    <form method="POST">
+      <label>Название
+        <input type="text" name="name" value="{{ loc.name }}" required>
+      </label>
+      <label>Описание
+        <textarea name="description">{{ loc.description }}</textarea>
+      </label>
+      <label>Адрес
+        <input type="text" name="address" value="{{ loc.address }}">
+      </label>
+      <label>Фото (URL)
+        <input type="text" name="photo" value="{{ loc.photo }}">
+      </label>
+      <label>Время работы
+        <input type="text" name="opening_hours" value="{{ loc.opening_hours }}">
+      </label>
+      <label>Контакты
+        <input type="text" name="contacts" value="{{ loc.contacts }}">
+      </label>
+      <label>Категория
+        <select name="category">
+          {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if cat.id == loc.category_id %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">💾 Сохранить</button>
+      <a href="{{ url_for('my_locations') }}" class="btn-gray">Отмена</a>
+    </form>
+  </main>
+</body>
+</html>

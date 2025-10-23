@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Гид по ДНР</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+</head>
+<body>
+    <!-- Кнопка рекомендаций -->
+<button id="recommend-btn" class="recommend-btn">🔥 Рекомендации</button>
+
+<!-- Всплывающее окно рекомендаций -->
+<div id="recommend-popup" class="favorites-popup hidden">
+  <div class="popup-header">
+    <h3>Рекомендации</h3>
+    <button id="close-recommend" class="close-btn">×</button>
+  </div>
+  <div id="recommend-list" class="favorites-list"></div>
+</div>
+
+
+
+  <div id="map"></div>
+
+  <!-- Карточка локации -->
+  <div id="location-card" class="location-card hidden">
+    <button id="close-card" class="close-btn">×</button>
+    <img id="card-photo" src="" alt="Фото" class="card-photo">
+    <div class="card-content">
+      <h2 id="card-title"></h2>
+      <div id="card-rating" class="card-rating"></div>
+      <p id="card-desc"></p>
+      <p id="card-address" class="small"></p>
+      <a id="card-link" href="#" class="btn">Подробнее</a>
+      <button id="fav-add-btn" class="btn" style="margin-top:10px;">⭐ В избранное</button>
+    </div>
+  </div>
+
+  <!-- Панель добавления локации -->
+  <div id="add-location-panel" class="add-location-panel hidden">
+    <h3>Добавить локацию</h3>
+    <form id="add-location-form">
+      <label>Название:<br><input type="text" name="name" required></label><br>
+      <label>Описание:<br><textarea name="description"></textarea></label><br>
+      <label>Адрес:<br><input type="text" name="address"></label><br>
+      <label>Координаты (широта, долгота):<br>
+        <input type="text" name="lat" readonly> ,
+        <input type="text" name="lng" readonly>
+      </label><br>
+      <label>Фото (URL):<br><input type="text" name="photo"></label><br>
+      <label>Время работы:<br><input type="text" name="opening_hours"></label><br>
+      <label>Контакты:<br><input type="text" name="contacts"></label><br>
+      <label>Категория:<br>
+        <select name="category">
+          {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </label><br><br>
+      <button type="submit">Сохранить</button>
+      <button type="button" id="cancel-add">Отмена</button>
+    </form>
+  </div>
+
+  <!-- Всплывающее окно избранного -->
+  <div id="favorites-popup" class="favorites-popup hidden">
+    <div class="popup-header">
+      <h3>Избранное</h3>
+      <button id="close-fav" class="close-btn">×</button>
+    </div>
+    <div id="favorites-list" class="favorites-list">
+      <p class="empty-msg">Пока пусто ❤️</p>
+    </div>
+  </div>
+
+  <!-- Всплывающее окно для неавторизованных -->
+  <div id="auth-popup" class="auth-popup hidden">
+    <div class="auth-popup-content">
+      <p>Чтобы использовать избранное, нужно авторизоваться.</p>
+      <a href="{{ url_for('login') }}" class="btn">Войти</a>
+      <button id="close-auth" class="btn gray">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Нижняя панель -->
+  <div class="mobile-bottom-bar">
+    <button class="bottom-btn" id="fav-btn">⭐</button>
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="Поиск по названию или категории...">
+        <button id="search-btn">🔍</button>
+     </div>
+    <button class="bottom-btn" id="profile-btn">👤</button>
+  </div>
+  <!-- Результаты поиска -->
+    <div id="search-results" class="search-results hidden"></div>
+
+  <script>
+    let map;
+    let allLocations = [];
+    let placemarks = {};
+    let clusterer; 
+
+    ymaps.ready(init);
+
+    function init() {
+        map = new ymaps.Map("map", {
+        center: [48.0, 37.8],
+        zoom: 12,
+        controls: ["zoomControl", "fullscreenControl"]
+         });
+        
+        // === Создание кластеризатора ===
+        clusterer = new ymaps.Clusterer({
+            preset: 'islands#orangeClusterIcons',
+            groupByCoordinates: false,
+            clusterDisableClickZoom: false,
+            clusterOpenBalloonOnClick: true,
+        });
+
+        // === Загрузка локаций ===
+        fetch('/api/locations')
+            .then(res => res.json())
+            .then(data => {
+                allLocations = data;
+
+                data.forEach(loc => {
+                    const placemark = new ymaps.Placemark(
+                        [loc.lat, loc.lng],
+                        { hintContent: loc.name },
+                        { preset: "islands#orangeIcon" }
+                    );
+
+                    placemark.events.add('click', () => showCard(loc));
+                    placemarks[loc.id] = placemark;
+
+                    // Добавляем в кластер
+                    clusterer.add(placemark);
+                });
+
+                // Добавляем кластер на карту
+                map.geoObjects.add(clusterer);
+            });
+
+        // === Добавление метки админом ===
+        {% if current_user.is_authenticated and current_user.role in ['admin','moderator','owner'] %}
+
+        map.events.add('click', e => {
+            const coords = e.get('coords');
+            const panel = document.getElementById('add-location-panel');
+            panel.classList.remove('hidden');
+            panel.querySelector('input[name=lat]').value = coords[0];
+            panel.querySelector('input[name=lng]').value = coords[1];
+        });
+
+        document.getElementById('cancel-add').addEventListener('click', () => {
+            document.getElementById('add-location-panel').classList.add('hidden');
+        });
+
+       document.getElementById('add-location-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = {};
+            new FormData(this).forEach((v, k) => data[k] = v);
+
+            {% if current_user.role == 'owner' %}
+            const url = '/api/my_location/add';
+            {% else %}
+            const url = '/api/add_location';
+            {% endif %}
+
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'ok') {
+                    document.getElementById('add-location-panel').classList.add('hidden');
+                    alert('✅ Локация успешно добавлена!');
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + d.msg);
+                }
+            });
+        });
+
+        {% endif %}
+    }
+
+    // === Показ карточки локации ===
+    function showCard(loc) {
+        const card = document.getElementById('location-card');
+        document.getElementById('card-title').innerText = loc.name;
+        document.getElementById('card-desc').innerText = loc.description || 'Описание отсутствует';
+        document.getElementById('card-address').innerText = loc.address || '';
+        document.getElementById('card-link').href = `/location/${loc.id}`;
+        document.getElementById('card-photo').src = loc.photo || '/static/no_photo.png';
+        // === Отображение среднего рейтинга ===
+        const ratingDiv = document.getElementById('card-rating');
+        const avg = loc.avg_rating || 0;
+        const stars = Math.round(avg);
+        let html = `<span class="avg-rating">${avg.toFixed(1)}</span>`;
+        for (let i = 1; i <= 5; i++) {
+            html += `<span class="star ${i <= stars ? 'gold' : ''}">★</span>`;
+        }
+        html += `<span style="font-size:14px; color:#777;"> (${loc.reviews_count} отзывов)</span>`;
+        ratingDiv.innerHTML = html;
+        document.getElementById('card-link').href = `/location/${loc.id}/reviews`;
+     document.getElementById('card-link').innerText = "📖 Прочитать отзывы";
+
+        const favBtn = document.getElementById('fav-add-btn');
+
+
+        // Проверяем, есть ли в избранном
+        fetch('/api/favorites')
+            .then(res => res.json())
+            .then(data => {
+                const isFav = data.some(f => f.id === loc.id);
+                updateFavButton(isFav, loc);
+            });
+
+        card.classList.remove('hidden');
+    }
+    function updateFavButton(isFav, loc) {
+        const favBtn = document.getElementById('fav-add-btn');
+        if (isFav) {
+            favBtn.innerText = '❌ Удалить из избранного';
+            favBtn.onclick = () => removeFavorite(loc);
+        } else {
+            favBtn.innerText = '⭐ В избранное';
+            favBtn.onclick = () => addFavorite(loc);
+        }
+    }
+    function addFavorite(loc) {
+        fetch(`/favorite/${loc.id}`, { method: 'POST' })
+            .then(r => {
+                if (r.status === 401) {
+                    document.getElementById('auth-popup').classList.remove('hidden');
+                    return null;
+                }
+                return r.json();
+            })
+            .then(d => {
+                if (d && d.status === 'ok') {
+                    alert("Добавлено в избранное");
+                    loadFavorites();
+                    updateFavButton(true, loc);
+                }
+            })
+            .catch(err => console.error(err));
+    }
+    function removeFavorite(loc) {
+        fetch(`/favorite/${loc.id}`, { method: 'DELETE' })
+            .then(r => {
+                if (r.status === 401) {
+                    document.getElementById('auth-popup').classList.remove('hidden');
+                    return null;
+                }
+                return r.json();
+            })
+            .then(d => {
+                if (d && d.status === 'ok') {
+                    alert("Удалено из избранного");
+                    loadFavorites();
+                    updateFavButton(false, loc);
+                }
+            })
+            .catch(err => console.error(err));
+    }
+    document.getElementById('close-card').addEventListener('click', () => {
+      document.getElementById('location-card').classList.add('hidden');
+    });
+
+    // === Добавление/удаление из избранного ===
+    function toggleFavorite(loc) {
+        fetch(`/favorite/${loc.id}`, { method: 'POST' })
+            .then(r => {
+                if (r.status === 401) {  // если не авторизован
+                    document.getElementById('auth-popup').classList.remove('hidden');
+                    return null;
+                }
+                if (r.status === 400) {
+                    // Уже в избранном — удаляем
+                    return fetch(`/favorite/${loc.id}`, { method: 'DELETE' })
+                        .then(res => res.json())
+                        .then(d => {
+                            if (d.status === 'ok') {
+                                alert("Удалено из избранного");
+                                loadFavorites();
+                            }
+                        });
+                }
+                return r.json();
+            })
+            .then(d => {
+                if (d && d.status === 'ok' && d.action === 'added') {
+                    alert("Добавлено в избранное");
+                    loadFavorites();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('auth-popup').classList.remove('hidden');
+            });
+    }
+
+
+    // === Открытие окна избранного ===
+    // === Открытие окна избранного ===
+    document.getElementById('fav-btn').addEventListener('click', () => {
+    fetch('/api/favorites')
+        .then(r => {
+        if (r.status === 401) { // если не авторизован
+            document.getElementById('auth-popup').classList.remove('hidden'); // показываем окно
+            return null;
+        }
+        return r.json();
+        })
+        .then(data => {
+        if (!data) return;
+
+        const list = document.getElementById('favorites-list');
+        list.innerHTML = '';
+
+        if (data.length === 0) {
+            list.innerHTML = '<p class="empty-msg">Пока пусто ❤️</p>';
+        } else {
+            data.forEach(fav => {
+            const item = document.createElement('div');
+            item.className = 'favorite-item';
+            item.innerHTML = `
+                <span>${fav.name}</span>
+                <button data-lat="${fav.lat}" data-lng="${fav.lng}">📍</button>
+            `;
+            item.querySelector('button').addEventListener('click', e => {
+                const lat = parseFloat(e.target.dataset.lat);
+                const lng = parseFloat(e.target.dataset.lng);
+                map.setCenter([lat, lng], 15);
+                showCard(fav);
+                document.getElementById('favorites-popup').classList.add('hidden');
+            });
+            list.appendChild(item);
+            });
+        }
+
+        document.getElementById('favorites-popup').classList.remove('hidden');
+        })
+        .catch(err => {
+        console.error(err);
+        // на случай других ошибок
+        document.getElementById('auth-popup').classList.remove('hidden');
+        });
+    });
+
+
+    // === Поиск ===
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+
+    searchBtn.addEventListener('click', doSearch);
+    searchInput.addEventListener('keypress', e => {
+    if (e.key === 'Enter') doSearch();
+    });
+    
+    function doSearch() {
+        const query = searchInput.value.trim().toLowerCase();
+        const resultsBox = document.getElementById('search-results');
+
+        resultsBox.innerHTML = '';
+        resultsBox.classList.add('hidden');
+        if (!query) return;
+
+        const results = allLocations.filter(l =>
+            l.name.toLowerCase().includes(query) ||
+            (l.category && l.category.toLowerCase().includes(query))
+        );
+
+        if (results.length === 0) {
+            resultsBox.innerHTML = '<p style="padding:10px; text-align:center; color:#777;">Ничего не найдено 😔</p>';
+            resultsBox.classList.remove('hidden');
+            return;
+        }
+
+        // если один результат — показываем карточку
+        if (results.length === 1) {
+            const loc = results[0];
+            map.setCenter([loc.lat, loc.lng], 15);
+            showCard(loc);
+            return;
+        }
+
+        // иначе — выводим список
+        results.forEach(loc => {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.innerHTML = `
+            <div class="info">
+                <h4>${loc.name}</h4>
+                <p>${loc.category || 'Без категории'}</p>
+            </div>
+            <button class="btn small" data-id="${loc.id}">📍</button>
+            `;
+
+            // клик по всей карточке открывает карточку локации
+            item.addEventListener('click', () => {
+            map.setCenter([loc.lat, loc.lng], 15);
+            showCard(loc);
+            resultsBox.classList.add('hidden');
+            });
+
+            // клик по кнопке 📍 просто центрирует карту
+            item.querySelector('button').addEventListener('click', (e) => {
+            e.stopPropagation();
+            map.setCenter([loc.lat, loc.lng], 15);
+            resultsBox.classList.add('hidden');
+            showCard(loc);
+            });
+
+            resultsBox.appendChild(item);
+        });
+
+        resultsBox.classList.remove('hidden');
+    }
+    // закрытие при клике извне
+    document.addEventListener('click', e => {
+        const box = document.getElementById('search-results');
+        const searchBox = document.querySelector('.search-box');
+        if (!searchBox.contains(e.target)) {
+            box.classList.add('hidden');
+        }
+    });
+
+
+    // === Кнопка профиля ===
+    // === Кнопка профиля ===
+    document.getElementById('profile-btn').addEventListener('click', () => {
+        {% if current_user.is_authenticated %}
+            {% if current_user.role in ['admin','moderator'] %}
+            window.location.href = "{{ url_for('admin_panel') }}";
+            {% elif current_user.role == 'owner' %}
+            window.location.href = "{{ url_for('my_locations') }}";
+            {% else %}
+            window.location.href = "{{ url_for('profile') }}";
+            {% endif %}
+        {% else %}
+            window.location.href = "{{ url_for('login') }}";
+        {% endif %}
+    });
+
+
+    // === Закрытие всплывающих окон ===
+    document.getElementById('close-fav').addEventListener('click', () => {
+      document.getElementById('favorites-popup').classList.add('hidden');
+    });
+    document.getElementById('close-auth').addEventListener('click', () => {
+      document.getElementById('auth-popup').classList.add('hidden');
+    });
+
+    function loadFavorites() {
+      // для обновления списка избранного после добавления
+      fetch('/api/favorites').catch(()=>{});
+    }
+
+
+// === Кнопка Рекомендации ===
+const recommendBtn = document.getElementById('recommend-btn');
+const recommendPopup = document.getElementById('recommend-popup');
+const recommendList = document.getElementById('recommend-list');
+const closeRecommend = document.getElementById('close-recommend');
+
+recommendBtn.addEventListener('click', () => {
+    recommendList.innerHTML = '';
+    // сортируем по количеству отзывов
+    const recs = allLocations.slice().sort((a,b) => (b.reviews_count||0) - (a.reviews_count||0));
+    // берём топ 5
+    recs.slice(0,5).forEach(loc => {
+        const item = document.createElement('div');
+        item.className = 'favorite-item'; // используем существующий стиль
+        item.innerHTML = `<span>${loc.name} (${loc.reviews_count||0} отзывов)</span> <button data-lat="${loc.lat}" data-lng="${loc.lng}">📍</button>`;
+        
+        // клик по всей карточке
+        item.addEventListener('click', () => {
+            map.setCenter([loc.lat, loc.lng], 15);
+            showCard(loc);
+            recommendPopup.classList.add('hidden');
+        });
+
+        // кнопка 📍 только центрирует карту
+        item.querySelector('button').addEventListener('click', e => {
+            e.stopPropagation();
+            const lat = parseFloat(e.target.dataset.lat);
+            const lng = parseFloat(e.target.dataset.lng);
+            map.setCenter([lat, lng], 15);
+            showCard(loc);
+            recommendPopup.classList.add('hidden');
+        });
+
+        recommendList.appendChild(item);
+    });
+
+    recommendPopup.classList.remove('hidden');
+});
+
+closeRecommend.addEventListener('click', () => {
+    recommendPopup.classList.add('hidden');
+});
+
+
+  </script>
+</body>
+</html>

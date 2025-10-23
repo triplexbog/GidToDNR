@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Мои локации</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+    }
+
+    header.app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(90deg, #ff9500, #ffb84d);
+      color: #fff;
+      padding: 10px 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      margin: 0;
+    }
+
+    header nav a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 10px;
+      font-weight: 500;
+    }
+
+    header nav a.logout {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .my-locations {
+      padding: 15px;
+      min-height: calc(100vh - 55px);
+    }
+
+    .locations-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+
+    .header-row h2 {
+      color: #ff9500;
+      font-size: 1.3rem;
+      margin: 0;
+    }
+
+    .btn {
+      background: #ff9500;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #e58400;
+      transform: translateY(-1px);
+    }
+
+    .btn.small {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+    }
+
+    .btn.gray {
+      background: #ccc;
+      color: #333;
+    }
+
+    .btn.gray:hover {
+      background: #bbb;
+    }
+
+    .location-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 15px;
+    }
+
+    .location-card-item {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(255,149,0,0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .location-card-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(255,149,0,0.3);
+    }
+
+    .location-card-item img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: #ffe0b3;
+    }
+
+    .loc-info {
+      padding: 12px 15px;
+    }
+
+    .loc-info h3 {
+      margin: 0;
+      color: #ff9500;
+      font-size: 1.1rem;
+      word-wrap: break-word;
+    }
+
+    .loc-info p {
+      margin: 4px 0 10px;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .empty-msg {
+      text-align: center;
+      color: #777;
+      font-size: 1rem;
+      margin-top: 50px;
+    }
+
+    /* === Мобильная адаптация === */
+    @media (max-width: 600px) {
+      header.app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      header h1 {
+        font-size: 1.1rem;
+      }
+
+      .header-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .btn {
+        width: 95%;
+        text-align: center;
+      }
+
+      .location-card-item img {
+        height: 160px;
+      }
+
+      .loc-info {
+        text-align: left;
+      }
+
+      .actions {
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>🏠 Мои локации</h1>
+    <nav>
+      <a href="/">На карту</a>
+      <a href="/logout" class="logout">Выйти</a>
+    </nav>
+  </header>
+
+  <main class="my-locations">
+    <div class="locations-container">
+      <div class="header-row">
+        <h2>Ваши бизнес-точки</h2>
+        <a href="#" id="add-loc-btn" class="btn">➕ Добавить</a>
+      </div>
+
+      {% if locations %}
+        <div class="location-list">
+          {% for loc in locations %}
+            <div class="location-card-item">
+              <img src="{{ loc.photo or '/static/no_photo.png' }}" alt="{{ loc.name }}">
+              <div class="loc-info">
+                <h3>{{ loc.name }}</h3>
+                <p class="small">{{ loc.address or 'Адрес не указан' }}</p>
+                <div class="actions">
+                  <button class="btn small" onclick="editLocation({{ loc.id }})">✏️ Редактировать</button>
+                  <button class="btn small gray" onclick="deleteLocation({{ loc.id }})">🗑 Удалить</button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-msg">У вас пока нет добавленных локаций.</p>
+      {% endif %}
+    </div>
+  </main>
+
+  <script>
+    function deleteLocation(id) {
+      if (!confirm("Удалить локацию?")) return;
+      fetch(`/api/my_location/delete/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => {
+          alert(d.msg);
+          if (d.status === 'ok') location.reload();
+        });
+    }
+
+    function editLocation(id) {
+      window.location.href = `/edit_location/${id}`;
+    }
+
+    document.getElementById('add-loc-btn').addEventListener('click', e => {
+      e.preventDefault();
+      alert('На карте можно добавить локацию, кликнув по нужному месту 🗺️');
+      window.location.href = '/';
+    });
+  </script>
+</body>
+</html>
